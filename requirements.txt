@@ -1,0 +1,13 @@
+numpy
+pandas
+scikit-learn
+joblib
+matplotlib
+seaborn
+japanize-matplotlib
+rich
+graphviz
+gurobipy==12.0.2
+optbinning
+jupyterlab
+ipykernel
