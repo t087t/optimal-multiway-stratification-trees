@@ -4,7 +4,7 @@
 
 The baseline is commit `3e9f48e`. This refactoring makes experiments executable and
 separates code responsibilities while preserving the research computation.
-Every original executable function/method in `src/` retains its AST, including
+All retained estimator and allocator methods preserve their ASTs, including
 defaults, annotations, arithmetic, iteration order, and random-number generation.
 Imports, comments, formatting, and private OMT method locations changed.
 
