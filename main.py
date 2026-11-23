@@ -17,6 +17,11 @@ DATA_FILES = {"customer": "customer_data.csv", "seoulbike": "SeoulBikeData.csv"}
 
 
 def parser() -> argparse.ArgumentParser:
+    """Build the command-line parser for the paper experiments.
+
+    Returns:
+        argparse.ArgumentParser: Parser with dataset, experiment, and output options.
+    """
     result = argparse.ArgumentParser(description=__doc__)
     result.add_argument("--dataset", required=True, choices=DATA_FILES)
     result.add_argument(
@@ -45,6 +50,22 @@ def parser() -> argparse.ArgumentParser:
 
 
 def main(argv: list[str] | None = None) -> int:
+    """Prepare data, run the requested experiments, and record run metadata.
+
+    Args:
+        argv: Command-line arguments without the program name. None reads sys.argv.
+
+    Returns:
+        int: Zero for successful execution/checks; one for handled input, dependency, I/O, or
+            runtime errors.
+
+    Raises:
+        SystemExit: If argument parsing handles --help or rejects an invalid command line.
+
+    Notes:
+        The supplementary sweeps keep their existing per-configuration exception handling.
+        Unexpected errors from experiment code propagate after metadata is marked failed.
+    """
     args = parser().parse_args(argv)
     try:
         config = ExperimentConfig(
@@ -60,7 +81,6 @@ def main(argv: list[str] | None = None) -> int:
                 f"Dataset not found: {csv_path}. See README.md for the required files and columns."
             )
 
-        # Select a noninteractive backend before importing experiment modules.
         import matplotlib
 
         matplotlib.use("Agg")
@@ -130,6 +150,14 @@ def main(argv: list[str] | None = None) -> int:
         meta_path = out / f"run_{args.experiment}.json"
 
         def save_metadata():
+            """Write the current run settings and status to the metadata JSON file.
+
+            Returns:
+                None: The enclosing metadata dictionary is written to meta_path.
+
+            Raises:
+                OSError: If the output files cannot be written.
+            """
             meta_path.write_text(json.dumps(metadata, indent=2) + "\n", encoding="utf-8")
 
         save_metadata()

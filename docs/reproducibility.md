@@ -4,8 +4,9 @@
 
 The baseline is commit `3e9f48e`. This refactoring makes experiments executable and
 separates code responsibilities while preserving the research computation.
-All retained estimator and allocator methods preserve their ASTs, including
-defaults, annotations, arithmetic, iteration order, and random-number generation.
+All retained estimator and allocator methods preserve their executable ASTs
+(excluding docstrings), including defaults, annotations, arithmetic, iteration
+order, and random-number generation.
 Imports, comments, formatting, and private OMT method locations changed.
 
 OMT uses three internal mixins. The public class remains

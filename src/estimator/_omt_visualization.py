@@ -1,7 +1,4 @@
-"""Internal OMST visualization implementation.
-
-Method bodies are preserved from the original research implementation.
-"""
+"""Console formatting and Graphviz rendering of selected OMT rules."""
 
 from typing import Any
 
@@ -11,8 +8,18 @@ from sklearn.utils.validation import check_is_fitted
 
 
 class RuleVisualizationMixin:
+    """Format selected OMT rules and render their paths with Graphviz."""
+
     def _format_condition(self, feature: str, condition: Any) -> str:
-        """表示用に条件を分かりやすくフォーマットする"""
+        """Format a stored rule condition for console or graph labels.
+
+        Args:
+            feature: Name of the feature represented by the condition.
+            condition: Stored membership, equality, inequality, or numeric-interval condition.
+
+        Returns:
+            str: Readable category or numeric-interval condition.
+        """
         if isinstance(condition, tuple) and len(condition) == 2:
             op, val = condition
 
@@ -31,7 +38,14 @@ class RuleVisualizationMixin:
         return f"{feature}: {str(condition)}"
 
     def _print_selected_rules(self) -> None:
-        """選択されたルールを人間が読みやすい形式で表示する"""
+        """Print selected rules and training statistics when verbose is enabled.
+
+        Returns:
+            None: Rule details are printed when requested.
+
+        Raises:
+            AttributeError: If verbose output is requested before selected rules exist.
+        """
         if not self.verbose:
             return
 
@@ -50,7 +64,14 @@ class RuleVisualizationMixin:
                 print(f"    - {formatted_cond}")
 
     def _visualize_rules(self) -> "graphviz.Digraph":
-        """選択されたOMTルールをGraphvizの有向グラフに変換する。"""
+        """Build a Graphviz graph from the selected rule paths.
+
+        Returns:
+            graphviz.Digraph: Graph description; no file is rendered yet.
+
+        Raises:
+            NotFittedError: If the estimator has not been fitted.
+        """
         check_is_fitted(self, "is_fitted_")
 
         dot = graphviz.Digraph(comment="OMT Rules")
@@ -114,7 +135,21 @@ class RuleVisualizationMixin:
         return dot
 
     def save_tree_png(self, filename: str = "omt_tree.png"):
-        """学習済みのOMTルールをPNGファイルとして保存する。"""
+        """Render selected OMT rules to a PNG file.
+
+        Args:
+            filename: Output PNG path; the renderer manages the extension and temporary DOT file.
+
+        Returns:
+            None: The rendered rule graph is written to filename.
+
+        Raises:
+            NotFittedError: If the estimator has not been fitted.
+            graphviz.ExecutableNotFound: If the Graphviz dot executable is unavailable.
+            subprocess.CalledProcessError: If Graphviz cannot render the graph.
+            OSError: If the output files cannot be written.
+            ImportError: If Graphviz support is unavailable.
+        """
         check_is_fitted(self, "is_fitted_")
 
         if graphviz is None:

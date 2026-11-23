@@ -1,4 +1,4 @@
-"""Original notebook coverage experiment and figures."""
+"""Coverage-bound sweep with selection-bias and variance evaluation."""
 
 from pathlib import Path
 
@@ -20,7 +20,25 @@ from .plots.coverage import save as save_plots
 
 
 def run(data: ExperimentData, config: ExperimentConfig, output_dir: Path):
-    """Evaluate coverage bounds, retaining the notebook bias/variance definition."""
+    """Sweep coverage bounds and save selection-bias, variance, and MSE results.
+
+    Args:
+        data: Aligned original, encoded, and standardized train/test data views.
+        config: Runtime sampling settings, seed, and figure-export options.
+        output_dir: Directory in which experiment tables and optional figures are saved.
+
+    Returns:
+        pandas.DataFrame: Coverage-sweep results, including NaN rows for caught failures.
+
+    Raises:
+        OSError: If the output files cannot be written.
+        KeyError: If required result columns are unavailable during figure export.
+        ValueError: If figure-export data or plotting parameters are invalid.
+
+    Notes:
+        Failures inside a model configuration are printed and represented by NaNs. MSE remains
+        selection-bias squared plus Monte Carlo variance, not finite-trial RMSE squared.
+    """
     y_train = data.y_train
     y_test = data.y_test
     df_X_train_original = data.df_X_train_original
@@ -30,51 +48,35 @@ def run(data: ExperimentData, config: ExperimentConfig, output_dir: Path):
     RANDOM_STATE = config.random_state
     OUTPUT_DIR = output_dir
     OUTPUT_DIR.mkdir(exist_ok=True, parents=True)
-    # 実験方法
-    # クラスタリング
-    N_CLUSTERS = 5  # クラスタ数
 
-    # 標本配分
+    N_CLUSTERS = 5
+
     ALLOCATION_METHODS = [
         ProportionalAllocator(),
         OptimalAllocator(m_value=1),
     ]
 
-    # OMT用のパラメータ設定
-    NUM_BINS = 4  # 連続値を離散化する際のビンの数
-    MAX_FEATURES_IN_RULE = 3  # 1つのルールに含める特徴量の最大数
+    NUM_BINS = 4
+    MAX_FEATURES_IN_RULE = 3
     MIN_SAMPLES_IN_RULE = int(len(df_X_train_original) * 0.05)
 
     print(f"MIN_SAMPLES_IN_RULE: {MIN_SAMPLES_IN_RULE}")
-    # =============================================================================
-    #  OMT：Allocator × Binning × MIN_COVERAGE 実験 + 卒論向け可視化（完全版）
-    # =============================================================================
 
-    # =============================================================================
-    # --- 初期設定 ---
-    # =============================================================================
     console = Console()
     japanize_matplotlib.japanize()
     plt.style.use("seaborn-v0_8-whitegrid")
 
-    # ======================================================================
-    # 0. 事前：母集団（train/test）の真の平均を計算（bias定義で使う）
-    # ======================================================================
     mu_train_pop = float(y_train.mean())
     mu_test_pop = float(y_test.mean())
 
     print(f"True mean (TRAIN population): {mu_train_pop:.6f}")
     print(f"True mean (TEST population) : {mu_test_pop:.6f}")
 
-    # --- 1. 実験のセットアップ ---
     print("\n実験のセットアップを開始します。")
     min_coverage_values = [1.0, 0.95, 0.9, 0.85, 0.8]
     binning_strategies = ["quantile", "optbinning"]
     results = []
 
-    # ======================================================================
-    # 2. 実験ループ (標本配分方法 × ビニング戦略 × 被覆率)
-    # ======================================================================
     for allocator in ALLOCATION_METHODS:
         allocator_name = allocator.__str__()
         console.rule(f"[bold red]Allocator: {allocator_name}[/bold red]")
@@ -99,7 +101,6 @@ def run(data: ExperimentData, config: ExperimentConfig, output_dir: Path):
                     "verbose": True,
                 }
 
-                # strategy が 'optbinning' の場合のみ、詳細パラメータを追加
                 if binning_strategy == "optbinning":
                     omt_params.update(
                         {
@@ -129,9 +130,6 @@ def run(data: ExperimentData, config: ExperimentConfig, output_dir: Path):
                         "actual_coverage": actual_coverage,
                     }
 
-                    # ======================================================
-                    # 3. TRAIN: covered に限定して bias / variance / mse
-                    # ======================================================
                     labels_train_all = omt.labels_
                     covered_mask_train = labels_train_all != -1
 
@@ -144,15 +142,12 @@ def run(data: ExperimentData, config: ExperimentConfig, output_dir: Path):
                         y_train_cov = y_train[covered_mask_train]
                         labels_train_cov = labels_train_all[covered_mask_train]
 
-                        # (A) selection bias（除外によるbias）：母集団平均との差
                         mu_train_cov = float(y_train_cov.mean())
                         bias_train = mu_train_cov - mu_train_pop
 
                         if omt.n_rules_ > 0:
-                            # (B) 配分（covered の strata に対して）
                             sample_size_each_cluster = omt.sample_size_each_cluster
 
-                            # (C) variance（covered 集団で抽出）
                             variance_train = float(
                                 estimate_y_var(
                                     sample_size_each_cluster,
@@ -163,7 +158,7 @@ def run(data: ExperimentData, config: ExperimentConfig, output_dir: Path):
                                 )
                             )
 
-                            # (D) mse
+                            # Retain selection-bias squared plus simulated variance as the sweep MSE.
                             mse_train = float(bias_train**2 + variance_train)
 
                             print(
@@ -183,9 +178,6 @@ def run(data: ExperimentData, config: ExperimentConfig, output_dir: Path):
                         }
                     )
 
-                    # ======================================================
-                    # 4. TEST: same rule で covered を作り bias / variance / mse
-                    # ======================================================
                     mse_test = variance_test = bias_test = np.nan
 
                     if sample_size_each_cluster is None or not np.any(sample_size_each_cluster):
@@ -211,11 +203,9 @@ def run(data: ExperimentData, config: ExperimentConfig, output_dir: Path):
                                     f"Alloc: {sample_size_each_cluster}, Actual: {test_cluster_sizes}"
                                 )
 
-                            # (A) selection bias（除外によるbias）：母集団平均との差
                             mu_test_cov = float(y_test_cov.mean())
                             bias_test = mu_test_cov - mu_test_pop
 
-                            # (B) variance（test の covered 集団で抽出）
                             variance_test = float(
                                 estimate_y_var(
                                     sample_size_each_cluster,
@@ -226,7 +216,6 @@ def run(data: ExperimentData, config: ExperimentConfig, output_dir: Path):
                                 )
                             )
 
-                            # (C) mse
                             mse_test = float(bias_test**2 + variance_test)
 
                             print(
@@ -263,17 +252,12 @@ def run(data: ExperimentData, config: ExperimentConfig, output_dir: Path):
                         }
                     )
 
-    # =============================================================================
-    # 5. 結果の集計と可視化（卒論・論文投稿向け：個別保存・横並び凡例版）
-    # =============================================================================
     print("\n" + "=" * 80 + "\n📊 論文用図表の出力処理を開始します。")
 
-    # 結果の整形
     results_df = pd.DataFrame(results)
     results_df["bias_train_sq"] = results_df["bias_train"] ** 2
     results_df["bias_test_sq"] = results_df["bias_test"] ** 2
 
-    # 表示名（論文用の日本語）
     strategy_name_map = {
         "quantile": "分位点ビニング",
         "optbinning": "最適ビニング",

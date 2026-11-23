@@ -1,7 +1,4 @@
-"""Internal OMST solver implementation.
-
-Method bodies are preserved from the original research implementation.
-"""
+"""Reduced and unreduced Gurobi models for OMT rule selection."""
 
 import time
 from collections import defaultdict
@@ -19,10 +16,30 @@ MIP_THREADS = 1
 
 
 class OptimizationMixin:
+    """Build and solve reduced and unreduced OMT selection models."""
+
     def _solve_mip(
         self, rules: List[Dict], num_samples: int, env: gp.Env
     ) -> Union[List[Dict], None]:
-        """MIPソルバーで最適なルールを選択"""
+        """Solve the rule-selection model after aggregating equivalent row constraints.
+
+        Args:
+            rules: Candidate rule dictionaries with feature conditions, packed masks, and outcome
+                statistics.
+            num_samples: Number of training rows represented by each packed coverage mask.
+            env: Started Gurobi environment used to create the model.
+
+        Returns:
+            list[dict] | None: Rules selected by an incumbent, or None if no solution is available.
+
+        Raises:
+            gurobipy.GurobiError: If model creation or optimization fails.
+            MemoryError: If packed rule-membership arrays cannot be allocated.
+
+        Notes:
+            Updates solver diagnostics and actual training coverage. A time-limit incumbent is
+            accepted even when optimality is unproven.
+        """
         if self.verbose:
             print(f"\nMIPソルバーに投入するルール数: {len(rules)}個")
             print(f"制約: ルール数 <= {self.max_rules}, カバレッジ >= {self.min_coverage:.0%}")
@@ -39,10 +56,10 @@ class OptimizationMixin:
 
         nbytes_mask = len(rules[0]["mask_packed"])
         num_rules = len(rules)
+        # Encode each row's candidate-rule membership compactly.
         nbytes_key = (num_rules + 7) // 8
         keys = np.zeros((num_samples, nbytes_key), dtype=np.uint8)
 
-        # ルールごとの被覆ビット列をバッチ展開し、同じ被覆候補を持つサンプルを集約する。
         mask_packed_mat = np.empty((num_rules, nbytes_mask), dtype=np.uint8)
         for j, r in enumerate(rules):
             mask_packed_mat[j, :] = np.frombuffer(
@@ -89,6 +106,14 @@ class OptimizationMixin:
             print("\nMIPの最適化を開始")
 
         def bytes_to_rule_tuple(b: bytes) -> Tuple[int, ...]:
+            """Decode the candidate-rule indices present in one packed group key.
+
+            Args:
+                b: Packed rule-membership bits for one group of training rows.
+
+            Returns:
+                tuple[int, ...]: Rule indices in increasing bit order.
+            """
             arr = np.frombuffer(b, dtype=np.uint8)
             bits = np.unpackbits(arr, bitorder="little")[:num_rules]
             idx = np.flatnonzero(bits)
@@ -204,6 +229,7 @@ class OptimizationMixin:
                 print(f"  - ObjBound    : {obj_bound}")
                 print(f"  - MIPGap      : {mip_gap}")
 
+            # Retain feasible incumbents when optimization ends before a proof of optimality.
             if model.SolCount > 0:
                 selected_indices = [j for j, v in z.items() if v.X > 0.5]
                 selected_set = set(selected_indices)
@@ -251,7 +277,21 @@ class OptimizationMixin:
                 return None
 
     def _solve_mip_unoptimized(self, rules: List[Dict], num_samples: int, env: gp.Env) -> float:
-        """制約削減なしでMIPを解き、計算時間比較用のRuntimeだけ返す。"""
+        """Solve the unreduced model and measure Gurobi runtime.
+
+        Args:
+            rules: Candidate rule dictionaries with feature conditions, packed masks, and outcome
+                statistics.
+            num_samples: Number of training rows represented by each packed coverage mask.
+            env: Started Gurobi environment used to create the model.
+
+        Returns:
+            float: Solver runtime in seconds, or NaN for no rules or a caught solver/memory failure.
+
+        Notes:
+            GurobiError and MemoryError are handled locally; a finite runtime does not imply that an
+            incumbent exists.
+        """
         if not rules:
             return np.nan
 
@@ -301,9 +341,24 @@ class OptimizationMixin:
     def _build_cover_lists_from_packed_masks(
         self, rules: List[Dict], num_samples: int
     ) -> List[np.ndarray]:
-        """各サンプルをカバーするルール番号リストを、packed maskから復元する。"""
+        """Recover the rule indices covering each training row.
+
+        Args:
+            rules: Candidate rule dictionaries with feature conditions, packed masks, and outcome
+                statistics.
+            num_samples: Number of training rows represented by each packed coverage mask.
+
+        Returns:
+            list[ndarray]: One int32 rule-index array per training row; uncovered rows have an empty
+                array.
+
+        Raises:
+            IndexError: If rules is empty.
+            MemoryError: If the packed membership arrays cannot be allocated.
+        """
         num_rules = len(rules)
         nbytes_mask = len(rules[0]["mask_packed"])
+        # Encode each row's candidate-rule membership compactly.
         nbytes_key = (num_rules + 7) // 8
         keys = np.zeros((num_samples, nbytes_key), dtype=np.uint8)
 
@@ -337,6 +392,26 @@ class OptimizationMixin:
         return cover_lists
 
     def _build_variance_objective(self, model: gp.Model, z, rules: List[Dict]):
+        """Construct the allocator-dependent rule-selection objective.
+
+        Args:
+            model: Gurobi model to which auxiliary objective variables may be added.
+            z (gurobipy.tupledict): Gurobi binary variables indexed by candidate rule number.
+            rules: Candidate rule dictionaries with feature conditions, packed masks, and outcome
+                statistics.
+
+        Returns:
+            gurobipy.LinExpr | gurobipy.QuadExpr: Variance objective without the common population
+                normalization.
+
+        Raises:
+            gurobipy.GurobiError: If auxiliary variables or constraints cannot be added.
+            ZeroDivisionError: If optimal allocation is used with sample_size equal to zero.
+
+        Notes:
+            Optimal allocation adds the sum-of-standard-deviations auxiliary variable; other
+            allocators use the linear variance term.
+        """
         sum_n_var = gp.quicksum(rules[j]["N_j_variance_j"] * z[j] for j in range(len(rules)))
 
         if isinstance(self.allocator, OptimalAllocator):

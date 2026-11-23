@@ -1,7 +1,4 @@
-"""Internal OMST rules implementation.
-
-Method bodies are preserved from the original research implementation.
-"""
+"""OMT binning, rule generation, and duplicate-coverage reduction."""
 
 import itertools
 import time
@@ -13,8 +10,22 @@ from optbinning import BinningProcess, ContinuousOptimalBinning
 
 
 class RuleGenerationMixin:
+    """Generate OMT conditions, candidate rules, and duplicate-mask reductions."""
+
     def _cumulative_binning(self, series: pd.Series, y: pd.Series) -> List[Tuple[float, float]]:
-        """選択された戦略に基づき、連続特徴量のすべての可能な区間を生成する。"""
+        """Enumerate threshold intervals for one numeric feature.
+
+        Args:
+            series: Values of one feature, in training-row order.
+            y: Target values accepted by the helper; fitted optimal-bin splits are reused instead.
+
+        Returns:
+            list[tuple[float, float]]: Lower-open, upper-closed intervals excluding the full real
+                line.
+
+        Raises:
+            ValueError: If the binning strategy or quantile-binning input is invalid.
+        """
         quantiles = []
 
         if self.binning_strategy == "quantile":
@@ -50,6 +61,7 @@ class RuleGenerationMixin:
         if len(thresholds) < 2:
             return []
 
+        # Exclude the universal interval so every numeric condition restricts coverage.
         intervals = [
             pair
             for pair in itertools.combinations(thresholds, 2)
@@ -62,6 +74,23 @@ class RuleGenerationMixin:
         return intervals
 
     def _generate_rules(self, X: pd.DataFrame, y: pd.Series) -> List[Dict[str, Any]]:
+        """Enumerate supported feature conjunctions and their packed coverage masks.
+
+        Args:
+            X: Feature matrix of shape (n_samples, n_features).
+            y: Population outcomes of shape (n_samples,), aligned with the feature rows.
+
+        Returns:
+            list[dict]: Candidate rules in enumeration order, including population sizes and outcome
+                statistics.
+
+        Raises:
+            RuntimeError: If optimal binning leaves no selected features.
+            ValueError: If numeric feature values or the binning strategy are invalid.
+
+        Notes:
+            Updates feature_order_. Candidates below min_samples_in_rule are pruned.
+        """
         if self.verbose:
             print("\nルール生成を開始")
             print(f"ルールに含まれる特徴量の最大数: {self.max_features_in_rule}")
@@ -87,6 +116,7 @@ class RuleGenerationMixin:
         y_values = y.to_numpy()
         nbytes = (n_samples + 7) // 8
         feature_types, X_converted = self._infer_feature_types(X)
+        # Stable ordering also determines rule enumeration and equal-length tie handling.
         feature_names = sorted(
             X.columns.tolist(), key=lambda c: X_converted[c].nunique(dropna=True)
         )
@@ -116,6 +146,16 @@ class RuleGenerationMixin:
             current_features: Dict[str, Any],
             current_mask: np.ndarray,
         ):
+            """Append supported rule extensions in the established feature order.
+
+            Args:
+                feat_idx_start: First feature index eligible for extension of the current rule.
+                current_features: Conditions already included in the current rule.
+                current_mask: Training rows covered by the current conjunction.
+
+            Returns:
+                None: Candidate dictionaries are appended to the enclosing rules list.
+            """
             for i in range(feat_idx_start, len(feature_names)):
                 if i >= len(atomic_conditions) or len(atomic_conditions[i]) == 0:
                     continue
@@ -164,9 +204,25 @@ class RuleGenerationMixin:
 
     @staticmethod
     def _pack_mask(mask_bool: np.ndarray) -> bytes:
+        """Pack a Boolean coverage mask using little-endian bit order.
+
+        Args:
+            mask_bool: Boolean coverage mask in training-row order.
+
+        Returns:
+            bytes: Packed mask padded to a complete final byte.
+        """
         return np.packbits(mask_bool.astype(np.uint8, copy=False), bitorder="little").tobytes()
 
     def _infer_feature_types(self, X: pd.DataFrame) -> tuple[Dict[str, str], pd.DataFrame]:
+        """Identify numeric/categorical columns and copy categorical values as strings.
+
+        Args:
+            X: Feature matrix of shape (n_samples, n_features).
+
+        Returns:
+            tuple: Feature-type mapping and a copied DataFrame with categorical string columns.
+        """
         feature_types: Dict[str, str] = {}
         X_converted = X.copy()
 
@@ -185,6 +241,16 @@ class RuleGenerationMixin:
     def _make_categorical_condition(
         self, feature: str, categories: set[str], values: np.ndarray
     ) -> Dict[str, Any]:
+        """Build a category-membership condition with its row coverage mask.
+
+        Args:
+            feature: Name of the feature represented by the condition.
+            categories: String categories included in the membership condition.
+            values: String feature values in training-row order.
+
+        Returns:
+            dict: Feature name, sorted membership tuple, type, and Boolean mask.
+        """
         ordered_categories = tuple(sorted(categories))
         return {
             "feature": feature,
@@ -196,6 +262,15 @@ class RuleGenerationMixin:
     def _build_optbinning_categorical_conditions(
         self, feature: str, series: pd.Series
     ) -> List[Dict[str, Any]]:
+        """Build membership conditions from fitted category groups and complements.
+
+        Args:
+            feature: Name of the feature represented by the condition.
+            series: Values of one feature, in training-row order.
+
+        Returns:
+            list[dict]: Distinct nonempty, nonuniversal categorical conditions.
+        """
         values = series.to_numpy()
         all_categories = set(pd.Series(values).dropna().unique().tolist())
         raw_groups = self.optb_splits_.get(feature, []) if hasattr(self, "optb_splits_") else []
@@ -222,6 +297,15 @@ class RuleGenerationMixin:
     def _build_singleton_categorical_conditions(
         self, feature: str, series: pd.Series
     ) -> List[Dict[str, Any]]:
+        """Build one membership condition for each observed category.
+
+        Args:
+            feature: Name of the feature represented by the condition.
+            series: Values of one feature, in training-row order.
+
+        Returns:
+            list[dict]: Single-category conditions in observed category order.
+        """
         values = series.to_numpy()
         categories = pd.Series(values).dropna().unique().tolist()
         return [
@@ -232,6 +316,19 @@ class RuleGenerationMixin:
     def _build_numeric_conditions(
         self, feature: str, series: pd.Series, y: pd.Series
     ) -> List[Dict[str, Any]]:
+        """Build numeric interval conditions and their training coverage masks.
+
+        Args:
+            feature: Name of the feature represented by the condition.
+            series: Values of one feature, in training-row order.
+            y: Population outcomes of shape (n_samples,), aligned with the feature rows.
+
+        Returns:
+            list[dict]: Interval conditions with lower-open, upper-closed masks.
+
+        Raises:
+            ValueError: If numeric values cannot be converted or binning fails.
+        """
         values = series.to_numpy().astype(float)
         conditions: List[Dict[str, Any]] = []
 
@@ -248,6 +345,18 @@ class RuleGenerationMixin:
         return conditions
 
     def _fit_optbinning_process(self, X: pd.DataFrame, y: pd.Series) -> None:
+        """Fit optimal bins and retain the selected features and splits.
+
+        Args:
+            X: Feature matrix of shape (n_samples, n_features).
+            y: Population outcomes of shape (n_samples,), aligned with the feature rows.
+
+        Returns:
+            None: Fitted binning models, selected variables, and splits are stored on self.
+
+        Raises:
+            ValueError: If feature/target data or optimal-binning parameters are invalid.
+        """
         variable_names = X.columns.tolist()
 
         cat_vars = set(self.categorical_variables or [])
@@ -295,7 +404,18 @@ class RuleGenerationMixin:
             print(f"[OptBinning] Dropped variables ({len(dropped)}): {dropped}")
 
     def _reduce_decision_variables(self, rules: List[Dict]) -> List[Dict]:
-        """重複するルールを集約（packed mask版）"""
+        """Keep the shortest rule for each identical packed coverage mask.
+
+        Args:
+            rules: Candidate rule dictionaries with feature conditions, packed masks, and outcome
+                statistics.
+
+        Returns:
+            list[dict]: Deduplicated rules in first-mask occurrence order.
+
+        Notes:
+            Equal-length ties retain the first rule, preserving the original enumeration order.
+        """
         if not rules:
             return []
 
@@ -313,6 +433,7 @@ class RuleGenerationMixin:
         for _, grouped_rules in sample_set_to_rules.items():
             if not grouped_rules:
                 continue
+            # Python min retains the first rule when lengths tie.
             best_rule = min(grouped_rules, key=lambda r: len(r["features"]))
             unique_rules.append(best_rule)
 

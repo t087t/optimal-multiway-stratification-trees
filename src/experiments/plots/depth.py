@@ -1,4 +1,4 @@
-"""Export the original depth figures without opening windows."""
+"""Figure export and reduction summaries for the depth experiment."""
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -8,18 +8,34 @@ from rich.table import Table
 
 
 def save(rrr_df, reduction_df, time_df, MAX_DEPTH_LIST, TREE_OUTPUT_DIR):
+    """Save depth-versus-RMSE plots and print problem-reduction tables.
+
+    Args:
+        rrr_df (pandas.DataFrame): Depth-sweep table containing train/test RMSE reduction rates.
+        reduction_df (pandas.DataFrame): Rule/constraint counts and reduced/unreduced solver
+            timings.
+        time_df (pandas.DataFrame): Depth-sweep timing table; retained in the interface but
+            unused here.
+        MAX_DEPTH_LIST (list[int]): Depth values used for axis ticks.
+        TREE_OUTPUT_DIR (pathlib.Path): Depth-experiment directory containing the figure
+            subdirectory.
+
+    Returns:
+        None: PNGs are saved in figures_for_thesis and reduction summaries are printed.
+
+    Raises:
+        OSError: If the output files cannot be written.
+        KeyError: If required reduction or RMSE-result columns are missing.
+        ValueError: If plotting values or table fields are invalid.
+    """
     console = Console()
     console.print("\n--- [ステップ3] 論文用図表の作成を開始します ---", style="bold cyan")
 
-    # 論文用の日本語マッピング
     allocator_name_map = {
         "Proportional": "比例配分",
         "Optimal": "最適配分",
     }
 
-    # =============================================================================
-    # --- 卒論・論文向けのスタイル設定 ---
-    # =============================================================================
     plt.rcParams.update(
         {
             "figure.dpi": 150,
@@ -38,25 +54,18 @@ def save(rrr_df, reduction_df, time_df, MAX_DEPTH_LIST, TREE_OUTPUT_DIR):
     FIG_DIR = TREE_OUTPUT_DIR / "figures_for_thesis"
     FIG_DIR.mkdir(exist_ok=True, parents=True)
 
-    # 手法ごとのマーカー設定（モノクロ印刷対応）
+    # Distinct markers keep methods distinguishable in grayscale printouts.
     marker_map = {
-        "OMT(quantile)": "o",  # 円
-        "OMT(optbinning)": "s",  # 四角
-        "CART": "^",  # 三角
+        "OMT(quantile)": "o",
+        "OMT(optbinning)": "s",
+        "CART": "^",
     }
 
-    # -------------------------------------------------------------------------
-    # 3a. 木の深さに対する RMSE削減率（RRR）: テストデータのみ
-    # -------------------------------------------------------------------------
     for alloc_raw, alloc_jp in allocator_name_map.items():
-        # 該当する配分手法のテストデータのみ抽出
         current_df = rrr_df[rrr_df["allocator_name"] == alloc_raw].copy()
 
-        # 図の作成
         fig, ax = plt.subplots(figsize=(8, 6))
 
-        # 折れ線グラフの描画
-        # hueとstyleを同時に指定し、markersに辞書を渡すことで手法ごとに形状を固定
         sns.lineplot(
             data=current_df,
             x="max_depth",
@@ -68,22 +77,19 @@ def save(rrr_df, reduction_df, time_df, MAX_DEPTH_LIST, TREE_OUTPUT_DIR):
             ax=ax,
         )
 
-        # 軸・ラベル設定（タイトルは無し）
         ax.set_xlabel("木の深さの上限値")
         ax.set_ylabel("RMSE削減率（%）")
         ax.set_xticks(MAX_DEPTH_LIST)
 
-        # グリッド設定
         ax.grid(True, which="major", linestyle="--", linewidth=0.6, alpha=0.7)
 
-        # 凡例を上部に横並びで配置（論文の構成に合わせて調整可能）
         handles, labels = ax.get_legend_handles_labels()
         ax.legend(
             handles=handles,
             labels=labels,
             loc="lower center",
-            bbox_to_anchor=(0.5, 1.01),  # 図のすぐ上
-            ncol=3,  # 3手法を横に並べる
+            bbox_to_anchor=(0.5, 1.01),
+            ncol=3,
             frameon=True,
             edgecolor="black",
             fancybox=False,
@@ -92,12 +98,9 @@ def save(rrr_df, reduction_df, time_df, MAX_DEPTH_LIST, TREE_OUTPUT_DIR):
 
         outpath = FIG_DIR / f"rrr_vs_depth_test_{alloc_raw}.png"
         plt.savefig(outpath, bbox_inches="tight")
-        # Figures are saved by the script; no interactive window is opened.
+
         plt.close(fig)
 
-    # -------------------------------------------------------------------------
-    # 3b. 問題縮小ロジックの効果の表（Rich Table） - コンソール確認用
-    # -------------------------------------------------------------------------
     for allocator_name in reduction_df["allocator_name"].unique():
         df_sub_alloc = reduction_df[reduction_df["allocator_name"] == allocator_name].copy()
 

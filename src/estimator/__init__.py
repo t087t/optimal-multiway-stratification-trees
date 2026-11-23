@@ -1,3 +1,5 @@
+"""Public estimator classes for the stratified-sampling experiments."""
+
 from src.estimator.cart import CARTEstimator
 from src.estimator.cuped import CUPEDEstimator
 from src.estimator.kmeansdt import KMeansDTEstimator

@@ -1,4 +1,4 @@
-"""Export the original coverage figures without opening windows."""
+"""Figure export for the coverage-bound experiment."""
 
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -7,6 +7,25 @@ from rich import print
 
 
 def save(results_df, min_coverage_values, allocator_name_map, OUTPUT_DIR):
+    """Save test MSE, variance, and squared-bias plots by allocator.
+
+    Args:
+        results_df (pandas.DataFrame): Coverage-sweep table containing bias, variance, and MSE
+            columns.
+        min_coverage_values (list[float]): Coverage bounds in the order used by the experiment.
+        allocator_name_map (dict[str, str]): Mapping from allocator identifiers to display
+            labels.
+        OUTPUT_DIR (pathlib.Path): Directory in which the comparison or coverage figures are
+            saved.
+
+    Returns:
+        None: Six PNG figures are written to the thesis_figures subdirectory.
+
+    Raises:
+        OSError: If the output files cannot be written.
+        KeyError: If required coverage-result columns are missing.
+        ValueError: If coverage categories or plotting data are invalid.
+    """
     plt.rcParams.update(
         {
             "figure.dpi": 150,
@@ -25,33 +44,28 @@ def save(results_df, min_coverage_values, allocator_name_map, OUTPUT_DIR):
     FIG_DIR = OUTPUT_DIR / "thesis_figures"
     FIG_DIR.mkdir(exist_ok=True, parents=True)
 
-    # 出力対象のメトリクス設定
     metrics = [
         ("mse_test", "MSE", "mse"),
         ("variance_test", "分散", "variance"),
         ("bias_test_sq", "バイアスの二乗", "bias2"),
     ]
 
-    # モノクロ印刷でも判別可能なマーカー設定
+    # Distinct markers keep binning strategies distinguishable in grayscale.
     marker_map = {
-        "分位点ビニング": "o",  # 円
-        "最適ビニング": "s",  # 四角
+        "分位点ビニング": "o",
+        "最適ビニング": "s",
     }
 
-    # 描画ループ
     for alloc_raw, alloc_jp in allocator_name_map.items():
         current_df = results_df[results_df["標本配分"] == alloc_jp].copy()
 
-        # 被覆率の並びを固定
         current_df["min_coverage"] = pd.Categorical(
             current_df["min_coverage"], categories=min_coverage_values, ordered=True
         )
 
         for col_name, label_jp, file_suffix in metrics:
-            # 図の作成（1枚ずつ）
             fig, ax = plt.subplots(figsize=(6, 5))
 
-            # 折れ線グラフの描画
             sns.lineplot(
                 data=current_df,
                 x="min_coverage",
@@ -63,20 +77,17 @@ def save(results_df, min_coverage_values, allocator_name_map, OUTPUT_DIR):
                 ax=ax,
             )
 
-            # 軸設定
             ax.set_xlabel("被覆率の下限値")
             ax.set_ylabel(label_jp)
-            ax.invert_xaxis()  # 1.0(左) -> 0.8(右) の順にする場合
+            ax.invert_xaxis()
             ax.grid(True, which="major", linestyle="--", alpha=0.7)
 
-            # 凡例を上部に横並びで配置
-            # ncol=2 で2列(横並び)にする。loc='lower center' で指定座標の下端を合わせる
             handles, labels = ax.get_legend_handles_labels()
             ax.legend(
                 handles=handles,
                 labels=labels,
                 loc="lower center",
-                bbox_to_anchor=(0.5, 1.01),  # 図の枠外、すぐ上
+                bbox_to_anchor=(0.5, 1.01),
                 ncol=2,
                 frameon=True,
                 edgecolor="black",
@@ -84,11 +95,8 @@ def save(results_df, min_coverage_values, allocator_name_map, OUTPUT_DIR):
                 columnspacing=1.5,
             )
 
-            # タイトルは LaTeX の caption で入れるため削除（空文字）
             ax.set_title("")
-            # Figures are saved by the script; no interactive window is opened.
 
-            # 保存
             out_filename = f"omt_test_{file_suffix}_{alloc_raw}.png"
             plt.savefig(FIG_DIR / out_filename, bbox_inches="tight")
             plt.close(fig)
