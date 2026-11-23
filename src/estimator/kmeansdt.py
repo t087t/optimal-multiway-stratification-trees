@@ -108,7 +108,9 @@ class KMeansDTEstimator(RegressorMixin, BaseEstimator):  # type: ignore
 
         # 既存の木の葉IDなので基本的に必ず辞書に存在するはず
         try:
-            strata_labels = np.vectorize(self.leaf_id_to_stratum_.__getitem__)(leaf_node_ids).astype(int)
+            strata_labels = np.vectorize(self.leaf_id_to_stratum_.__getitem__)(
+                leaf_node_ids
+            ).astype(int)
         except KeyError as e:
             raise ValueError(
                 "未知のleaf_idが出ました。通常は起こりませんが、モデル破損/不整合の可能性があります。"
@@ -156,7 +158,7 @@ class KMeansDTEstimator(RegressorMixin, BaseEstimator):  # type: ignore
         $C_{new} = C_{old} + (255 - C_{old}) \times factor$
         factor: 0.0 (変化なし) ～ 1.0 (真っ白)
         """
-        hex_color = hex_color.lstrip('#')
+        hex_color = hex_color.lstrip("#")
         # RGBに変換
         r = int(hex_color[0:2], 16)
         g = int(hex_color[2:4], 16)
@@ -182,7 +184,7 @@ class KMeansDTEstimator(RegressorMixin, BaseEstimator):  # type: ignore
             filled=True,
             rounded=True,
             special_characters=True,
-            fontname=font
+            fontname=font,
         )
 
         # テキストの置換
@@ -197,14 +199,14 @@ class KMeansDTEstimator(RegressorMixin, BaseEstimator):  # type: ignore
             f'graph [dpi=300, labelfontname="{font}", labelfontsize=10, margin=0.2];\n'
             f'    node [fontname="{font}", fontsize=12, margin="0.3,0.15"];'
         )
-        dot_data = dot_data.replace('graph [', settings + '\n    graph [', 1)
+        dot_data = dot_data.replace("graph [", settings + "\n    graph [", 1)
 
         # 色を薄くする処理
         lighten_factor = 0.2
         dot_data = re.sub(
             r'fillcolor="(#[A-Fa-f0-9]{6})"',
             lambda m: f'fillcolor="{self.lighten_color(m.group(1), factor=lighten_factor)}"',
-            dot_data
+            dot_data,
         )
 
         # 保存実行

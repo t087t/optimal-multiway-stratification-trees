@@ -4,8 +4,11 @@ from src.estimator.kmeansdt import KMeansDTEstimator
 from src.estimator.normal import NormalEstimator
 from src.estimator.omt import OMTEstimator
 from src.estimator.random import RandomEstimator
-from src.estimator.sfs import (SequentialForwardSelectionFEstimator, SequentialForwardSelectionTEstimator,
-                               SequentialForwardSelectionVarEstimator)
+from src.estimator.sfs import (
+    SequentialForwardSelectionFEstimator,
+    SequentialForwardSelectionTEstimator,
+    SequentialForwardSelectionVarEstimator,
+)
 
 __all__ = [
     "RandomEstimator",

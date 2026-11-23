@@ -1,0 +1,28 @@
+{
+  "customer": {
+    "features_list": "01f5756453050f0d2d7cd53469ee2c273a93778ee96a56952ebb0e594eb114de",
+    "features_list_cat": "1864dece978c348675e0fa0ad5d620f30129f8b7aa00e983ebb11aa762675216",
+    "columns_list_encoded": "6e283a4320f6308fcd7bcdb2b86673371b82eb6b1d1b4a5b07ce7a4b54388a30",
+    "df_X_train_encoded": "ab503109aedee4cff67d3638062c20ae9a09cc6ded26294f645be9979d63e7fa",
+    "df_X_test_encoded": "767e410594a3ef2465909ab492288138dc9a66334b9197af7df73f3efa690020",
+    "X_train_std": "1151916e4e0ed476e436625be7b46a296fdfc43d9d2d1668d0491050d6a0d6f8",
+    "X_test_std": "fecab1bbb51a7281be2444e588210c31db401957d4068e19b8f198c90057d5e1",
+    "y_train": "d4eac1f0a9b1474d379f20b51171efbb489fa603387edd0be90646f6372b767f",
+    "y_test": "24b2a081cfcbd6d139b583d82de15421178d42de5510689c5c31153e5a454aaf",
+    "df_X_train_original": "173d27e6a11b6c012949d1ea3dbaa6994094bac0b6acc046d1e781e918c72212",
+    "df_X_test_original": "0e6ef6a956046b516c12f309a079dea6eca15d9140f8c3cdca07d8795584aaeb"
+  },
+  "seoulbike": {
+    "features_list": "2400c5990b400c8fc4c18e3adebe5486355b05601f9b5b30f8ad70518ba546c1",
+    "features_list_cat": "f5e2e3b2eb9e783e027a61e16d2df90ce60632d933d26223b301c04a8491cbd2",
+    "columns_list_encoded": "b035482894254fa14312b8908674b399b9a713e5294fbe6bae6a0ba3cf824394",
+    "df_X_train_encoded": "68f0b448974c67435c2f3d45f9d263e4b406c4a113a592df20e74e1160c0f946",
+    "df_X_test_encoded": "af484b1d76f437b7d0bcc01fd30179174cb3301d7fd19bcbc16edba0c91650e1",
+    "X_train_std": "269eef787565352c68f47c6a436aedb0f4b9e2ad17fcbebccebfd447172c05cd",
+    "X_test_std": "bfffa980f4bdfc213404b903a78d899c27115fdd4afc676671872d6f5fed0f00",
+    "y_train": "1e5f5d719c2c3d97b84fbcc6a66735aba5ae3559eb1a875545b041c8489a9bc9",
+    "y_test": "d5a11d08333d9be3edd5cd85a870f5e42d6ceabf30f9506ceb88487ac9bfe666",
+    "df_X_train_original": "bcaab0d8894f86619d8444f5699fe3c21105a055785b7d669224dd4d4623e926",
+    "df_X_test_original": "3ba82c7d503072c1f78dbb1890f5efcdbabadae7e792b40e4fa60b6b4977d270"
+  }
+}

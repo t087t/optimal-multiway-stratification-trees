@@ -22,8 +22,7 @@ class RandomEstimator(RegressorMixin, BaseEstimator):  # type: ignore
 
         # 標本平均を並列して計算
         y_hats = Parallel(n_jobs=-1)(
-            delayed(self.estimate_y_mean)(X, y, self.random_state + i)
-            for i in range(self.n_trials)
+            delayed(self.estimate_y_mean)(X, y, self.random_state + i) for i in range(self.n_trials)
         )
         y_hats = np.asarray(y_hats, dtype=float)
 

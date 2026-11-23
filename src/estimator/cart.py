@@ -5,14 +5,13 @@ from typing import Optional
 
 import graphviz
 import numpy as np
-import pandas as pd
 from numpy.typing import NDArray
 from sklearn.base import BaseEstimator, RegressorMixin
 from sklearn.tree import DecisionTreeRegressor, export_graphviz, export_text
 from sklearn.utils.validation import check_is_fitted, check_X_y
 
 # 外部モジュール
-from src.allocator import AllocatorProtocol, estimate_y_rmse, estimate_y_var
+from src.allocator import AllocatorProtocol, estimate_y_rmse
 
 # --- CARTEstimator クラス ---
 
@@ -32,7 +31,6 @@ class CARTEstimator(RegressorMixin, BaseEstimator):  # type: ignore
         n_trials: int = 100,
         random_state: int = 0,
         min_samples_leaf: int = 1,
-
     ):
         self.allocator = allocator
         self.sample_size = sample_size
@@ -132,7 +130,7 @@ class CARTEstimator(RegressorMixin, BaseEstimator):  # type: ignore
             filled=True,
             rounded=True,
             special_characters=True,
-            fontname=font
+            fontname=font,
         )
 
         dot_data = dot_data.replace("samples =", "事例数: ")
@@ -143,12 +141,12 @@ class CARTEstimator(RegressorMixin, BaseEstimator):  # type: ignore
             f'graph [dpi=300, labelfontname="{font}", labelfontsize=10, margin=0.2];\n'
             f'    node [fontname="{font}", fontsize=9];'
         )
-        dot_data = dot_data.replace('graph [', settings + '\n    graph [', 1)
+        dot_data = dot_data.replace("graph [", settings + "\n    graph [", 1)
 
         # DOTデータからグラフを生成し、PNGとして保存
         graph = graphviz.Source(dot_data)
         # .png拡張子を除いた部分をファイル名としてrenderに渡す
-        graph.render(filename.rsplit('.', 1)[0], format="png", cleanup=True)
+        graph.render(filename.rsplit(".", 1)[0], format="png", cleanup=True)
         print(f"決定木を '{filename}' に保存しました。")
 
     def __str__(self) -> str:

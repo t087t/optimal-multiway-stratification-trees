@@ -39,8 +39,7 @@ class CUPEDEstimator(RegressorMixin, BaseEstimator):  # type: ignore
 
         # 各反復 t における（変換後 y_cuped の）標本平均 μ̂^(t) を並列に計算
         sample_means = Parallel(n_jobs=-1)(
-            delayed(self.estimate_y_mean)(X, y, self.random_state + i)
-            for i in range(self.n_trials)
+            delayed(self.estimate_y_mean)(X, y, self.random_state + i) for i in range(self.n_trials)
         )
         sample_means = np.asarray(sample_means, dtype=float)
 

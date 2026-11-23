@@ -164,3 +164,7 @@ outputs/
 
 # Gurobi license
 gurobi.lic
+
+# Local migration / validation artifacts
+.validation/
+.ruff_cache/

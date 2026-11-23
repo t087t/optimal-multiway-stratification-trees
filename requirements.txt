@@ -1,13 +1,16 @@
-numpy
-pandas
-scikit-learn
-joblib
-matplotlib
-seaborn
-japanize-matplotlib
-rich
-graphviz
+# Versions used for the refactoring regression checks (Python 3.13.2).
+# The original repository pinned only gurobipy; these are not a recovered paper lockfile.
+numpy==2.2.6
+pandas==2.3.0
+scipy==1.15.3
+scikit-learn==1.7.0
+joblib==1.5.1
+matplotlib==3.10.3
+seaborn==0.13.2
+japanize-matplotlib==1.1.3
+rich==14.2.0
+graphviz==0.20.3
 gurobipy==12.0.2
-optbinning
-jupyterlab
-ipykernel
+optbinning==0.20.0
+# japanize-matplotlib imports distutils through setuptools on Python 3.13.
+setuptools==80.9.0

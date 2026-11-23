@@ -13,7 +13,11 @@ class AllocatorProtocol(Protocol):
     """
 
     def solve(
-        self, y: NDArray[np.float64], labels: NDArray[np.int_], n_clusters: int, sample_size: int
+        self,
+        y: NDArray[np.float64],
+        labels: NDArray[np.int_],
+        n_clusters: int,
+        sample_size: int,
     ) -> NDArray[np.int_]:
         """標本配分を解く
 
@@ -119,9 +123,7 @@ def estimate_y_mean(
     rng = np.random.RandomState(random_state)
     y_mean = 0.0
 
-    for cluster, n_h, weight_h in zip(
-        clusters, sample_size_each_cluster, weight_each_cluster
-    ):
+    for cluster, n_h, weight_h in zip(clusters, sample_size_each_cluster, weight_each_cluster):
         y_h = y[labels == cluster]
         y_h_sample = rng.choice(y_h, n_h, replace=False)
         y_mean += y_h_sample.mean() * weight_h
@@ -166,35 +168,6 @@ def estimate_y_var(
     return var
 
 
-'''def estimate_y_rmse_and_components(
-    sample_size_each_cluster: NDArray[np.int_],
-    y: NDArray[np.float64],
-    labels: NDArray[np.int_],
-    true_mean: float,
-    n_trials: int,
-    random_state: Optional[int] = None,
-) -> dict:
-    """
-    シミュレーションを繰り返し、分散、バイアス、MSE、RMSEを計算する。
-    """
-    # 標本平均のリストを取得
-    y_means_list = Parallel(n_jobs=1)(
-        delayed(estimate_y_mean)(sample_size_each_cluster, y, labels, i + random_state)
-        for i in range(n_trials)
-    )
-    y_means_list = np.array(y_means_list)
-
-    # 分散とバイアスを計算
-    variance = np.var(y_means_list, ddof=1)  # type: ignore
-    bias = np.mean(y_means_list) - true_mean
-
-    # MSEとRMSEを計算
-    mse = bias**2 + variance
-    rmse = np.sqrt(mse)
-
-    return {"rmse": rmse, "variance": variance, "bias": bias}'''
-
-
 def estimate_y_rmse(
     sample_size_each_cluster: NDArray[np.int_],
     y: NDArray[np.float64],
@@ -227,7 +200,11 @@ class ProportionalAllocator:
     """
 
     def solve(
-        self, y: NDArray[np.float64], labels: NDArray[np.int_], n_clusters: int, sample_size: int
+        self,
+        y: NDArray[np.float64],
+        labels: NDArray[np.int_],
+        n_clusters: int,
+        sample_size: int,
     ) -> NDArray[np.int_]:
         """各クラスタ数に比例した標本数で分割する（最大剰余法）"""
 
@@ -273,9 +250,7 @@ class OptimalAllocator:
     def __init__(
         self,
         m_value: int,  # 標本サイズ下限
-        M: Optional[
-            NDArray[np.float64]
-        ] = None,  # 標本サイズ上限 #Optional(Noneである可能性がある)
+        M: Optional[NDArray[np.float64]] = None,  # 標本サイズ上限 #Optional(Noneである可能性がある)
     ):
         self.m_value = m_value
         self.M = M
