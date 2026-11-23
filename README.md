@@ -180,7 +180,6 @@ src/
     ├── coverage.py             Coverage sweep
     ├── depth.py                Depth and computational-reduction sweep
     └── plots/                 Figure export
-tests/                          Original-code regression fixtures and checks
 docs/reproducibility.md          Preservation contract and validation scope
 ```
 
@@ -188,20 +187,5 @@ The notebooks were replaced by scripts, including their supplementary experiment
 and plots, and remain available in Git history. Existing imports such as
 `from src.estimator import OMTEstimator` remain valid.
 
-## Development
-
-```bash
-python -m pip install -r requirements-dev.txt -c constraints.txt
-python -m ruff check main.py src tests
-python -m ruff format --check main.py src tests
-python -m unittest discover -v
-```
-
-Tests compare original function/method ASTs, numerical snapshots, both notebook
-preprocessing pipelines, comparison defaults, and small actual Gurobi solves.
-Solver tests explicitly skip when a usable license is unavailable. GitHub Actions
-runs checks on Python 3.13.2 / Windows.
-
-These establish preservation on tested inputs. Full paper reproduction requires
-the original data and an unrestricted license; full paper experiments have not
-been rerun during this refactoring. See [validation details](docs/reproducibility.md#validation).
+See [implementation and reproducibility notes](docs/reproducibility.md) for the
+preserved preprocessing, allocation, and model settings.
