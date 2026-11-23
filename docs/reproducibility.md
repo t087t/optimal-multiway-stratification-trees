@@ -128,4 +128,4 @@ comparison on an artificial customer CSV also matched the original notebook's
 All three CLI workflows completed on artificial inputs for both datasets,
 including CSV and figure export. These checks concern the refactoring; the
 paper-scale experiments were not rerun. Verification scripts and artificial
-fixtures are kept locally rather than included in this research-code repository.
+fixtures are not included in this research-code repository.
