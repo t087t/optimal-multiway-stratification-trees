@@ -1,5 +1,4 @@
-# Versions used for the refactoring regression checks (Python 3.13.2).
-# The original repository pinned only gurobipy; these are not a recovered paper lockfile.
+# Python 3.13.2 dependencies.
 numpy==2.2.6
 pandas==2.3.0
 scipy==1.15.3
