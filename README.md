@@ -172,7 +172,7 @@ src/
 │   ├── _omt_rules.py           Binning, candidates, duplicate reduction
 │   ├── _omt_solver.py          Reduced and unreduced Gurobi models
 │   ├── _omt_visualization.py   Rule formatting and Graphviz export
-│   └── ...                    Comparison estimators and protocol
+│   └── ...                    Comparison estimators
 └── experiments/
     ├── config.py               Runtime defaults
     ├── datasets.py             Preparation and aligned train/test views

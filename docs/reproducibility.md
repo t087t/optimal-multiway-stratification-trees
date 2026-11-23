@@ -16,6 +16,8 @@ The main order remains Random, CUPED, then quantile OMT, optimal-binning OMT,
 KMeans, KMeans-DT, SFS-KMeans-Var, and CART for each of Proportional and Optimal
 allocation. The unimplemented comparison references were removed as requested.
 
+The unused estimator protocol and development-only tooling were removed.
+
 Execution changes comprise the CLI, earlier schema/sample-size checks, saved
 noninteractive plots, coverage CSV export, run metadata, and replacing notebooks
 and Jupyter dependencies with ordinary scripts.
